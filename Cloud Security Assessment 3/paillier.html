@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Paillier Encryption</title>
+  <style>
+    body { font-family:sans-serif; max-width:700px; margin:2em auto; }
+    button { padding:.5em 1em; font-size:1em; }
+    pre { background:#f7f7f7; padding:1em; border:1px solid #ddd; 
+          white-space:pre-wrap; word-break:break-all; }
+  </style>
+</head>
+<body>
+  <h1>Paillier Encryption</h1>
+  <p>Every <code>c_i</code> uses exactly <code>m_i</code> and <code>r_i</code>:</p>
+  <button id="encrypt">Compute Ciphertexts</button>
+  <pre id="out">Click “Compute Ciphertexts” to run.</pre>
+
+  <script>
+    // 1) Public Key (1024-bit) as hex
+    const n  = BigInt("0x" +
+      "bde4e64469318e7b60c4e93c328ace4c43e273a4048e7790" +
+      "53a2063d35febce90a2e362d5eb7babd7d6fe8891bb39585" +
+      "b48fe69eb4e1b69f7c07e4be79d8321f26b91b90e3c5f6a51" +
+      "62efdfcbe356c8349bc8eea6ea6aa21fa0f9a9f77dcc6f249" +
+      "28fc79ff4f5616b93718fd72169c98b810b0521d23175f1a" +
+      "ae0ccf5b77ac1b"
+    );
+    const g  = n + 1n;
+    const n2 = n * n;
+
+    // 2) M in hex
+    const m1 = 0x156en;   // 5486
+    const m2 = 0x26ddn;   // 9949
+    const m3 = 0x1858n;   // 6232
+
+    // 3) Randomness in hex
+    const r1 = 0x123456789123456789n;
+    const r2 = 0x234567891234567891n;
+    const r3 = 0x345678912345678912n;
+
+    // 4)  modular exponentiation
+    function modPow(b,e,m) {
+      let r=1n; b%=m;
+      while(e>0n){
+        if(e&1n) r=(r*b)%m;
+        b=(b*b)%m; e>>=1n;
+      }
+      return r;
+    }
+
+    // 5) Paillier encrypt: return {t1,t2,c}
+    function encrypt(mi,ri) {
+      const t1 = modPow(g,   mi, n2);  // g^m mod n²
+      const t2 = modPow(ri,  n,  n2);  // r^n mod n²
+      return { t1, t2, c: (t1 * t2) % n2 };
+    }
+
+    document.getElementById("encrypt")
+      .addEventListener("click", () => {
+        const lines = [];
+
+        // c1
+        const e1 = encrypt(m1,r1);
+        lines.push(`c_1=(g^m1 mod n²)*(r1^n mod n²) mod n²`);
+        lines.push(
+          `    =(${e1.t1.toString(16)})*(${e1.t2.toString(16)}) mod n²`
+        );
+        lines.push(`c_1=${e1.c.toString(16)}`);
+        lines.push("");
+
+        // c2
+        const e2 = encrypt(m2,r2);
+        lines.push(`c_2=(g^m2 mod n²)*(r2^n mod n²) mod n²`);
+        lines.push(
+          `    =(${e2.t1.toString(16)})*(${e2.t2.toString(16)}) mod n²`
+        );
+        lines.push(`c_2=${e2.c.toString(16)}`);
+        lines.push("");
+
+        // c3
+        const e3 = encrypt(m3,r3);
+        lines.push(`c_3=(g^m3 mod n²)*(r3^n mod n²) mod n²`);
+        lines.push(
+          `    =(${e3.t1.toString(16)})*(${e3.t2.toString(16)}) mod n²`
+        );
+        lines.push(`c_3=${e3.c.toString(16)}`);
+
+        document.getElementById("out").textContent = lines.join("\n");
+      });
+  </script>
+</body>
+</html>

@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Shamir Secret Sharing for Paillier</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    label { display: block; margin-top: 10px; font-weight: bold; }
+    textarea, input, select { width: 100%; padding: 6px; margin-top: 4px; box-sizing: border-box; }
+    button { margin: 8px 0; padding: 8px 12px; font-size: 16px; cursor: pointer; }
+    pre { background: #f4f4f4; padding: 10px; border-radius: 4px; white-space: pre-wrap; word-wrap: break-word; }
+  </style>
+</head>
+<body>
+  <h1>Shamir Secret Sharing (Paillier Parameter)</h1>
+
+   <!-- Input Section -->
+  <label for="secret">Secret S:</label>
+  <textarea id="secret" rows="2" placeholder="Paste your secret S here (decimal)"></textarea>
+
+  <label for="a1">a1 (Student ID):</label>
+  <input id="a1" type="text" placeholder="e.g. 3894630" />
+
+  <label for="a2">a2 (random coefficient):</label>
+  <textarea id="a2" rows="2" placeholder="Paste random a2 here (decimal)"></textarea>
+
+  <label for="primeP">Prime P (modulus &gt; S):</label>
+  <textarea id="primeP" rows="2" placeholder="Paste prime P here (decimal)"></textarea>
+
+    <!-- Action Buttons -->
+  <button id="generate">Generate Shares</button>
+
+    <!-- Reconstruction Selections -->
+  <label for="pick1">Select first share:</label>
+  <select id="pick1">
+    <option value="1">1</option>
+    <option value="2">2</option>
+    <option value="3">3</option>
+    <option value="4">4</option>
+  </select>
+  <label for="pick2">Select second share:</label>
+  <select id="pick2">
+    <option value="1">1</option>
+    <option value="2">2</option>
+    <option value="3">3</option>
+    <option value="4">4</option>
+  </select>
+  <label for="pick3">Select third share:</label>
+  <select id="pick3">
+    <option value="1">1</option>
+    <option value="2">2</option>
+    <option value="3">3</option>
+    <option value="4">4</option>
+  </select>
+  <button id="reconstruct">Reconstruct Secret</button>
+
+  <pre id="output"></pre>
+
+  <script>
+    function getInputs() {
+      const S = BigInt(document.getElementById('secret').value.trim());
+      const a1 = BigInt(document.getElementById('a1').value.trim());
+      const a2 = BigInt(document.getElementById('a2').value.trim());
+      const P = BigInt(document.getElementById('primeP').value.trim());
+      return { S, a1, a2, P };
+    }
+
+    function modInverse(a, m) {
+      let a0 = (a % m + m) % m, m0 = m, x0 = 0n, x1 = 1n;
+      if (m0 === 1n) return 0n;
+      while (a0 > 1n) {
+        const q = a0 / m0;
+        [m0, a0] = [a0 % m0, m0];
+        [x0, x1] = [x1 - q * x0, x0];
+      }
+      return x1 < 0n ? x1 + m : x1;
+    }
+
+    function share(x) {
+      const { S, a1, a2, P } = getInputs();
+      const X = BigInt(x);
+      let fx = (S + a1 * X + a2 * X * X) % P;
+      return fx < 0n ? fx + P : fx;
+    }
+
+    function generateShares() {
+      try {
+        const shares = [];
+        for (let x = 1; x <= 4; x++) {
+          shares.push({ x, y: share(x) });
+        }
+        let out = 'Shares:\n';
+        shares.forEach(s => out += `x=${s.x}, y=${s.y.toString()}\n`);
+        document.getElementById('output').textContent = out;
+      } catch (err) {
+        document.getElementById('output').textContent = 'Error: ' + err;
+      }
+    }
+
+    function lagrangeCoeff(j, xs, P) {
+      let num = 1n, den = 1n;
+      const xj = BigInt(xs[j]);
+      xs.forEach((xm, idx) => {
+        if (idx !== j) {
+          num = (num * (0n - BigInt(xm))) % P;
+          den = (den * (xj - BigInt(xm))) % P;
+        }
+      });
+      num = (num + P) % P;
+      den = (den + P) % P;
+      return (num * modInverse(den, P)) % P;
+    }
+
+    function reconstruct() {
+      try {
+        const { S, P } = getInputs();
+        const idx1 = parseInt(document.getElementById('pick1').value, 10);
+        const idx2 = parseInt(document.getElementById('pick2').value, 10);
+        const idx3 = parseInt(document.getElementById('pick3').value, 10);
+        const xs = [idx1, idx2, idx3];
+        if (new Set(xs).size < 3) {
+          throw 'Please select three distinct shares.';
+        }
+        const ys = xs.map(x => share(x));
+        let recovered = 0n;
+        xs.forEach((_, j) => {
+          const lj = lagrangeCoeff(j, xs, P);
+          recovered = (recovered + ys[j] * lj) % P;
+        });
+        recovered = (recovered + P) % P;
+        const result = recovered.toString();
+        const match = result === S.toString();
+        document.getElementById('output').textContent =
+          `Reconstructed S: ${result}\nMatches original? ${match}`;
+      } catch (err) {
+        document.getElementById('output').textContent = 'Error: ' + err;
+      }
+    }
+
+    document.getElementById('generate').addEventListener('click', generateShares);
+    document.getElementById('reconstruct').addEventListener('click', reconstruct);
+  </script>
+</body>
+</html>
